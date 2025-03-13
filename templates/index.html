@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云存储文件管理系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.4/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Quill.js 富文本编辑器样式 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #f8f9fa;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+            background-color: #f1f8ff;
+        }
+        .main-container {
+            max-width: 800px;
+            margin: 50px auto;
+        }
+        .header {
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+        }
+        #file-info {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        .btn-upload {
+            margin-top: 20px;
+        }
+        .progress {
+            display: none;
+            margin-top: 20px;
+        }
+        .upload-status {
+            display: none;
+            margin-top: 10px;
+        }
+        #uploadProgress {
+            height: 20px;
+        }
+        
+        /* 公告栏样式 */
+        .announcement-card {
+            margin-top: 30px;
+        }
+        #editor-container {
+            height: 300px;
+            margin-bottom: 15px;
+        }
+        .ql-editor {
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto;
+        }
+        .announcement-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .announcement-tools {
+            display: flex;
+            gap: 10px;
+        }
+        .edit-mode-controls {
+            display: none;
+        }
+        .view-mode .ql-toolbar {
+            display: none;
+        }
+        .view-mode .ql-container {
+            border: none;
+        }
+        .last-updated {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        /* 主题切换按钮样式 */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        /* 暗色主题 */
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #222;
+            --bs-body-color: #e0e0e0;
+        }
+        
+        [data-bs-theme="dark"] .card {
+            background-color: #333;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .upload-area {
+            background-color: #2a2a2a;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .upload-area:hover {
+            background-color: #383838;
+            border-color: #0d6efd;
+        }
+        
+        [data-bs-theme="dark"] .text-muted {
+            color: #aaa !important;
+        }
+        
+        [data-bs-theme="dark"] .alert-info {
+            background-color: #1c3345;
+            color: #9fcdff;
+            border-color: #14506d;
+        }
+        
+        /* 暗色主题下的Quill编辑器样式 */
+        [data-bs-theme="dark"] .ql-toolbar {
+            background-color: #333;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .ql-container {
+            background-color: #2a2a2a;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+        
+        [data-bs-theme="dark"] .ql-editor.ql-blank::before {
+            color: #888;
+        }
+        
+        [data-bs-theme="dark"] .ql-snow .ql-stroke {
+            stroke: #ccc;
+        }
+        
+        [data-bs-theme="dark"] .ql-snow .ql-fill {
+            fill: #ccc;
+        }
+        
+        [data-bs-theme="dark"] .ql-picker-label {
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主题切换按钮 -->
+    <button class="btn theme-toggle" id="themeToggle" title="切换主题">
+        <i class="bi bi-sun-fill" id="lightIcon"></i>
+        <i class="bi bi-moon-fill" id="darkIcon" style="display: none;"></i>
+    </button>
+
+    <div class="container main-container">
+        <div class="header">
+            <h1>云存储文件管理系统</h1>
+            <p class="text-muted">上传、查看和下载您的文件</p>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-4">文件上传</h2>
+                
+                <form id="uploadForm">
+                    <div class="upload-area" id="dropZone">
+                        <p><i class="bi bi-cloud-upload"></i> 拖放文件到这里或点击选择文件</p>
+                        <input type="file" name="file" id="fileInput" class="form-control" style="display: none;">
+                        <button type="button" class="btn btn-outline-primary" id="browseBtn">选择文件</button>
+                        <div id="file-info"></div>
+                    </div>
+                    
+                    <!-- 进度条 -->
+                    <div class="progress">
+                        <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            0%
+                        </div>
+                    </div>
+                    
+                    <!-- 上传状态信息 -->
+                    <div class="upload-status alert" role="alert"></div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-upload" id="uploadBtn" disabled>上传文件</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 公告栏卡片 -->
+        <div class="card announcement-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="card-title mb-0"><i class="bi bi-megaphone me-2"></i>公告栏</h2>
+                    <div class="announcement-tools">
+                        <button id="editBtn" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> 编辑
+                        </button>
+                        <div class="edit-mode-controls">
+                            <button id="saveBtn" class="btn btn-sm btn-success">
+                                <i class="bi bi-check-lg"></i> 保存
+                            </button>
+                            <button id="cancelBtn" class="btn btn-sm btn-outline-secondary ms-2">
+                                <i class="bi bi-x-lg"></i> 取消
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 富文本编辑器容器 -->
+                <div id="editor-container" class="view-mode"></div>
+                
+                <div class="announcement-footer">
+                    <span class="last-updated" id="lastUpdated">
+                        {{ if .LastUpdated }}
+                        最后更新: {{ .LastUpdated }}
+                        {{ else }}
+                        尚未更新
+                        {{ end }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="/files" class="btn btn-outline-secondary">查看已上传文件</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <!-- Quill.js 富文本编辑器 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/quill/1.3.7/quill.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            const uploadForm = document.getElementById('uploadForm');
+            const progressBar = document.getElementById('uploadProgress');
+            const uploadStatus = document.querySelector('.upload-status');
+            
+            // 点击浏览按钮触发文件输入
+            $('#browseBtn').click(function() {
+                $('#fileInput').click();
+            });
+
+            // 文件拖放区域事件处理
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('bg-light');
+            });
+            
+            dropZone.addEventListener('dragleave', function() {
+                dropZone.classList.remove('bg-light');
+            });
+            
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('bg-light');
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    updateFileInfo(e.dataTransfer.files[0]);
+                }
+            });
+
+            // 文件选择后更新信息
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    updateFileInfo(this.files[0]);
+                }
+            });
+
+            // 处理文件上传
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!fileInput.files.length) {
+                    showStatus('请选择要上传的文件', 'warning');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // 显示进度条
+                $('.progress').show();
+                uploadStatus.style.display = 'none';
+                $('#uploadBtn').prop('disabled', true);
+
+                // 发送上传请求
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    xhr: function() {
+                        const xhr = new XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', function(e) {
+                            if (e.lengthComputable) {
+                                const percentComplete = (e.loaded / e.total) * 100;
+                                updateProgress(percentComplete);
+                            }
+                        }, false);
+                        return xhr;
+                    },
+                    success: function(response) {
+                        updateProgress(100);
+                        showStatus('文件上传成功！正在跳转...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/files';
+                        }, 1500);
+                    },
+                    error: function(xhr, status, error) {
+                        showStatus('上传失败: ' + (xhr.responseText || error), 'danger');
+                        updateProgress(0);
+                        $('#uploadBtn').prop('disabled', false);
+                    }
+                });
+            });
+
+            // 更新文件信息显示
+            function updateFileInfo(file) {
+                let size = formatFileSize(file.size);
+                $('#file-info').html(`
+                    <div class="alert alert-info mt-3">
+                        <strong>已选文件:</strong> ${file.name}<br>
+                        <strong>文件大小:</strong> ${size}
+                    </div>
+                `);
+                $('#uploadBtn').prop('disabled', false);
+                $('.progress').hide();
+                $('.upload-status').hide();
+                updateProgress(0);
+            }
+
+            // 更新进度条
+            function updateProgress(percent) {
+                percent = Math.round(percent);
+                progressBar.style.width = percent + '%';
+                progressBar.textContent = percent + '%';
+                progressBar.setAttribute('aria-valuenow', percent);
+            }
+
+            // 显示状态信息
+            function showStatus(message, type) {
+                uploadStatus.className = 'upload-status alert alert-' + type;
+                uploadStatus.textContent = message;
+                uploadStatus.style.display = 'block';
+            }
+
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // 公告栏相关功能
+            const editorContainer = document.getElementById('editor-container');
+            
+            // 初始化Quill编辑器
+            const quill = new Quill('#editor-container', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'align': [] }],
+                        ['link', 'image'],
+                        ['clean']
+                    ]
+                },
+                placeholder: '请在此输入公告内容...'
+            });
+            
+            // 设置初始内容
+            quill.setContents({{ if .AnnouncementDelta }}{{ .AnnouncementDelta }}{{ else }}[]{{ end }});
+            
+            // 进入查看模式
+            editorContainer.classList.add('view-mode');
+            quill.disable();
+            
+            // 编辑按钮点击事件
+            $('#editBtn').click(function() {
+                // 切换到编辑模式
+                editorContainer.classList.remove('view-mode');
+                quill.enable();
+                $(this).hide();
+                $('.edit-mode-controls').show();
+            });
+            
+            // 保存按钮点击事件
+            $('#saveBtn').click(function() {
+                const delta = quill.getContents();
+                const html = quill.root.innerHTML;
+                
+                // 发送保存请求
+                $.ajax({
+                    url: '/save-announcement',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        delta: delta,
+                        html: html
+                    }),
+                    success: function(response) {
+                        // 更新最后更新时间
+                        $('#lastUpdated').text('最后更新: ' + response.lastUpdated);
+                        
+                        // 返回查看模式
+                        editorContainer.classList.add('view-mode');
+                        quill.disable();
+                        $('.edit-mode-controls').hide();
+                        $('#editBtn').show();
+                        
+                        // 显示成功消息
+                        showStatus('公告保存成功！', 'success');
+                        setTimeout(() => {
+                            $('.upload-status').hide();
+                        }, 3000);
+                    },
+                    error: function(xhr, status, error) {
+                        showStatus('保存失败: ' + (xhr.responseText || error), 'danger');
+                    }
+                });
+            });
+            
+            // 取消按钮点击事件
+            $('#cancelBtn').click(function() {
+                // 恢复原始内容
+                quill.setContents({{ if .AnnouncementDelta }}{{ .AnnouncementDelta }}{{ else }}[]{{ end }});
+                
+                // 返回查看模式
+                editorContainer.classList.add('view-mode');
+                quill.disable();
+                $('.edit-mode-controls').hide();
+                $('#editBtn').show();
+            });
+
+            // 主题切换功能
+            const themeToggleBtn = $('#themeToggle');
+            const lightIcon = $('#lightIcon');
+            const darkIcon = $('#darkIcon');
+            const htmlElement = $('html');
+            
+            // 从本地存储中获取主题设置
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                htmlElement.attr('data-bs-theme', savedTheme);
+                updateThemeToggleButton(savedTheme);
+            } else {
+                // 检测系统主题偏好
+                const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDarkMode) {
+                    htmlElement.attr('data-bs-theme', 'dark');
+                    updateThemeToggleButton('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+            
+            // 更新主题切换按钮图标
+            function updateThemeToggleButton(theme) {
+                if (theme === 'dark') {
+                    lightIcon.hide();
+                    darkIcon.show();
+                    themeToggleBtn.removeClass('btn-light').addClass('btn-dark');
+                } else {
+                    darkIcon.hide();
+                    lightIcon.show();
+                    themeToggleBtn.removeClass('btn-dark').addClass('btn-light');
+                }
+            }
+            
+            // 切换主题
+            themeToggleBtn.click(function() {
+                const currentTheme = htmlElement.attr('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                htmlElement.attr('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeToggleButton(newTheme);
+            });
+            
+            // 初始化主题切换按钮
+            updateThemeToggleButton(htmlElement.attr('data-bs-theme'));
+        });
+    </script>
+</body>
+</html> 

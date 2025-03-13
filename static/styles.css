@@ -1,0 +1,36 @@
+/* 自定义全局样式 */
+.custom-shadow {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.text-ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .container.main-container {
+        margin: 20px auto;
+    }
+    
+    .upload-area {
+        padding: 20px;
+    }
+}
+
+/* 动画效果 */
+.fade-in {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+} 

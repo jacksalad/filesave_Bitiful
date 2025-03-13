@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件列表 - 云存储文件管理系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.4/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .main-container {
+            max-width: 900px;
+            margin: 50px auto;
+        }
+        .header {
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+        }
+        .file-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+        .table-responsive {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .empty-list {
+            text-align: center;
+            padding: 50px 0;
+        }
+        .file-actions a {
+            margin: 0 5px;
+        }
+        
+        /* 主题切换按钮样式 */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        /* 暗色主题 */
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #222;
+            --bs-body-color: #e0e0e0;
+        }
+        
+        [data-bs-theme="dark"] .card {
+            background-color: #333;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .table {
+            color: #e0e0e0;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .table-light th {
+            background-color: #444;
+            color: #e0e0e0;
+            border-color: #555;
+        }
+        
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: #3a3a3a;
+        }
+        
+        [data-bs-theme="dark"] .text-muted {
+            color: #aaa !important;
+        }
+        
+        [data-bs-theme="dark"] .modal-content {
+            background-color: #333;
+            color: #e0e0e0;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+    </style>
+</head>
+<body>
+    <!-- 主题切换按钮 -->
+    <button class="btn theme-toggle" id="themeToggle" title="切换主题">
+        <i class="bi bi-sun-fill" id="lightIcon"></i>
+        <i class="bi bi-moon-fill" id="darkIcon" style="display: none;"></i>
+    </button>
+
+    <div class="container main-container">
+        <div class="header">
+            <h1>文件列表</h1>
+            <p class="text-muted">查看和下载您上传的文件</p>
+        </div>
+
+        <!-- 操作消息提示 -->
+        {{ if .Message }}
+        <div class="alert alert-{{ .MessageType }} alert-dismissible fade show" role="alert">
+            {{ .Message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+        </div>
+        {{ end }}
+
+        <div class="card">
+            <div class="card-body">
+                {{ if .Files }}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>文件名</th>
+                                <th>大小</th>
+                                <th>上传时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Files }}
+                            <tr>
+                                <td>
+                                    <i class="{{ fileIcon .Name }} file-icon"></i>
+                                    {{ .Name }}
+                                </td>
+                                <td>{{ formatSize .Size }}</td>
+                                <td>{{ formatTime .LastModified }}</td>
+                                <td class="file-actions">
+                                    {{ if isPreviewable .Name }}
+                                    <a href="/preview/{{ .Key }}" class="btn btn-sm btn-info" target="_blank">
+                                        <i class="bi bi-eye"></i> 查看
+                                    </a>
+                                    {{ end }}
+                                    <a href="/download/{{ .Key }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-download"></i> 下载
+                                    </a>
+                                    <a href="javascript:void(0)" class="btn btn-sm btn-danger delete-btn" data-filename="{{ .Name }}" data-key="{{ .Key }}">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </a>
+                                </td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+                {{ else }}
+                <div class="empty-list">
+                    <i class="bi bi-folder2-open" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h3 class="mt-4">尚未上传文件</h3>
+                    <p class="text-muted">返回首页上传您的第一个文件</p>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="/" class="btn btn-outline-primary">返回上传页面</a>
+        </div>
+    </div>
+
+    <!-- 删除确认对话框 -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">确认删除</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <p>您确定要删除文件 <strong id="fileToDelete"></strong> 吗？</p>
+                    <p class="text-danger">此操作不可恢复！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <a href="#" id="confirmDeleteBtn" class="btn btn-danger">确认删除</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 文件大小格式化 (这部分会在服务端处理，此处只是备用)
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 删除文件确认
+        $(document).ready(function() {
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            
+            $('.delete-btn').click(function() {
+                const key = $(this).data('key');
+                const filename = $(this).data('filename');
+                
+                // 设置模态框内容
+                $('#fileToDelete').text(filename);
+                $('#confirmDeleteBtn').attr('href', '/delete/' + key);
+                
+                // 显示模态框
+                deleteModal.show();
+            });
+            
+            // 主题切换功能
+            const themeToggleBtn = $('#themeToggle');
+            const lightIcon = $('#lightIcon');
+            const darkIcon = $('#darkIcon');
+            const htmlElement = $('html');
+            
+            // 从本地存储中获取主题设置
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                htmlElement.attr('data-bs-theme', savedTheme);
+                updateThemeToggleButton(savedTheme);
+            } else {
+                // 检测系统主题偏好
+                const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDarkMode) {
+                    htmlElement.attr('data-bs-theme', 'dark');
+                    updateThemeToggleButton('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+            
+            // 更新主题切换按钮图标
+            function updateThemeToggleButton(theme) {
+                if (theme === 'dark') {
+                    lightIcon.hide();
+                    darkIcon.show();
+                    themeToggleBtn.removeClass('btn-light').addClass('btn-dark');
+                } else {
+                    darkIcon.hide();
+                    lightIcon.show();
+                    themeToggleBtn.removeClass('btn-dark').addClass('btn-light');
+                }
+            }
+            
+            // 切换主题
+            themeToggleBtn.click(function() {
+                const currentTheme = htmlElement.attr('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                htmlElement.attr('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeToggleButton(newTheme);
+            });
+            
+            // 初始化主题切换按钮
+            updateThemeToggleButton(htmlElement.attr('data-bs-theme'));
+        });
+    </script>
+</body>
+</html> 

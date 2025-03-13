@@ -1,0 +1,20 @@
+{
+  "delta": {
+    "ops": [
+      {
+        "insert": "RedJACK Notes["
+      },
+      {
+        "attributes": {
+          "link": "www.redjackwl.com"
+        },
+        "insert": "www.redjackwl.com"
+      },
+      {
+        "insert": "]\n"
+      }
+    ]
+  },
+  "html": "\u003cp\u003eRedJACK Notes[\u003ca href=\"www.redjackwl.com\" rel=\"noopener noreferrer\" target=\"_blank\"\u003ewww.redjackwl.com\u003c/a\u003e]\u003c/p\u003e",
+  "lastUpdated": "2025-03-14 00:11:45"
+}

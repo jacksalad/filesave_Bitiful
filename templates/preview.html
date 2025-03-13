@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预览: {{ .Filename }} - 云存储文件管理系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.4/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.7.0/styles/github.min.css" id="light-style">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" id="dark-style" disabled>
+    <style>
+        .main-container {
+            max-width: 95%;
+            margin: 30px auto;
+        }
+        .header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-details {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 5px;
+        }
+        .file-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+        .preview-container {
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        pre {
+            margin: 0;
+            padding: 0;
+            max-height: 70vh;
+            overflow: auto;
+        }
+        code {
+            padding: 15px !important;
+            border-radius: 0 !important;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            tab-size: 4;
+        }
+        
+        /* 主题切换按钮样式 */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        /* 文本换行控制 */
+        .wrap-toggle {
+            cursor: pointer;
+        }
+        
+        .no-wrap pre code {
+            white-space: pre;
+        }
+        
+        .line-wrap pre code {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* 行号 */
+        .line-numbers {
+            counter-reset: line;
+        }
+        
+        .line-numbers code {
+            counter-increment: line;
+        }
+        
+        .line-numbers code:before {
+            content: counter(line);
+            display: inline-block;
+            width: 2em;
+            padding: 0 0.5em;
+            margin-right: 0.5em;
+            color: #888;
+            border-right: 1px solid #ddd;
+            user-select: none;
+        }
+        
+        /* 暗色主题 */
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #222;
+            --bs-body-color: #e0e0e0;
+        }
+        
+        [data-bs-theme="dark"] .card {
+            background-color: #333;
+            border-color: #444;
+        }
+        
+        [data-bs-theme="dark"] .file-details {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        [data-bs-theme="dark"] .line-numbers code:before {
+            border-right-color: #555;
+            color: #666;
+        }
+        
+        [data-bs-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+    </style>
+</head>
+<body>
+    <!-- 主题切换按钮 -->
+    <button class="btn theme-toggle" id="themeToggle" title="切换主题">
+        <i class="bi bi-sun-fill" id="lightIcon"></i>
+        <i class="bi bi-moon-fill" id="darkIcon" style="display: none;"></i>
+    </button>
+
+    <div class="container main-container">
+        <div class="header">
+            <h1><i class="bi bi-file-earmark-text me-2"></i>文件预览</h1>
+            <div>
+                <a href="/files" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回文件列表
+                </a>
+                <a href="/download/{{ .Filename }}" class="btn btn-primary">
+                    <i class="bi bi-download"></i> 下载文件
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="file-details">
+                    <div>
+                        <h5 class="mb-0">{{ .Filename }}</h5>
+                        <small class="text-muted">大小: {{ .FileSize }} | 类型: {{ .Language }}</small>
+                    </div>
+                    <div>
+                        <button id="toggleWrap" class="btn btn-sm btn-outline-secondary wrap-toggle" title="切换文本换行">
+                            <i class="bi bi-text-wrap"></i> 切换换行
+                        </button>
+                        <button id="toggleLineNumbers" class="btn btn-sm btn-outline-secondary ms-2" title="显示/隐藏行号">
+                            <i class="bi bi-list-ol"></i> 显示行号
+                        </button>
+                    </div>
+                </div>
+
+                <div class="preview-container no-wrap" id="codeContainer">
+                    <pre><code class="language-{{ .Language }}">{{ .Content }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 语法高亮初始化
+            hljs.highlightAll();
+            
+            // 主题切换功能
+            const themeToggleBtn = $('#themeToggle');
+            const lightIcon = $('#lightIcon');
+            const darkIcon = $('#darkIcon');
+            const htmlElement = $('html');
+            const lightStyle = $('#light-style');
+            const darkStyle = $('#dark-style');
+            
+            // 从本地存储中获取主题设置
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                htmlElement.attr('data-bs-theme', savedTheme);
+                updateThemeToggleButton(savedTheme);
+            } else {
+                // 检测系统主题偏好
+                const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDarkMode) {
+                    htmlElement.attr('data-bs-theme', 'dark');
+                    updateThemeToggleButton('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+            
+            // 更新主题切换按钮图标和代码高亮主题
+            function updateThemeToggleButton(theme) {
+                if (theme === 'dark') {
+                    lightIcon.hide();
+                    darkIcon.show();
+                    themeToggleBtn.removeClass('btn-light').addClass('btn-dark');
+                    lightStyle.attr('disabled', 'disabled');
+                    darkStyle.removeAttr('disabled');
+                } else {
+                    darkIcon.hide();
+                    lightIcon.show();
+                    themeToggleBtn.removeClass('btn-dark').addClass('btn-light');
+                    darkStyle.attr('disabled', 'disabled');
+                    lightStyle.removeAttr('disabled');
+                }
+            }
+            
+            // 切换主题
+            themeToggleBtn.click(function() {
+                const currentTheme = htmlElement.attr('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                htmlElement.attr('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeToggleButton(newTheme);
+            });
+            
+            // 初始化主题切换按钮
+            updateThemeToggleButton(htmlElement.attr('data-bs-theme'));
+            
+            // 文本换行切换
+            $('#toggleWrap').click(function() {
+                const codeContainer = $('#codeContainer');
+                if (codeContainer.hasClass('no-wrap')) {
+                    codeContainer.removeClass('no-wrap').addClass('line-wrap');
+                    $(this).html('<i class="bi bi-text-paragraph"></i> 取消换行');
+                } else {
+                    codeContainer.removeClass('line-wrap').addClass('no-wrap');
+                    $(this).html('<i class="bi bi-text-wrap"></i> 切换换行');
+                }
+            });
+            
+            // 行号切换
+            $('#toggleLineNumbers').click(function() {
+                const codeContainer = $('#codeContainer');
+                if (codeContainer.hasClass('line-numbers')) {
+                    codeContainer.removeClass('line-numbers');
+                    $(this).html('<i class="bi bi-list-ol"></i> 显示行号');
+                } else {
+                    codeContainer.addClass('line-numbers');
+                    $(this).html('<i class="bi bi-list-task"></i> 隐藏行号');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
