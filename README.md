@@ -2,6 +2,12 @@
 
 这是一个基于Go语言和Bootstrap开发的云存储文件管理系统，可以轻松地上传、查看、下载和删除文件。本项目使用Bitiful缤纷云对象存储服务作为后端存储。
 
+![](https://github.com/jacksalad/filesave_Bitiful/blob/main/static/screencapture1.png)
+
+![](https://github.com/jacksalad/filesave_Bitiful/blob/main/static/screencapture2.png)
+
+![](https://github.com/jacksalad/filesave_Bitiful/blob/main/static/screencapture3.png)
+
 ## 功能特点
 
 - 简洁美观的用户界面
